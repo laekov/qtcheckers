@@ -46,3 +46,34 @@ bool Board::accessible(int ox, int oy, int tx, int ty, int frac, int ctnjmp) {
 	return 0;
 }
 
+void Board::sync(const char* d) {
+	if (d[0] == 'B') {
+		for (int i = 1; i <= 100; ++ i) {
+			this->a[(i - 1) / 10][(i - 1) % 10] = d[i] - 48;
+		}
+	}
+}
+
+std::string Board::toString() {
+	std::string s("B");
+	for (int i = 0; i < 10; ++ i) {
+		for (int j = 0; j < 10; ++ j) {
+			s += (char)this->a[i][j] + 48;
+		}
+	}
+	return s;
+}
+
+bool Board::move(int ox, int oy, int px, int py) {
+	if (!this->accessible(ox, oy, px, py, this->a[ox][oy] & 3)) {
+		return 0;
+	}
+	this->a[px][py] = this->a[ox][oy];
+	this->a[ox][oy] = Board::Empty;
+	if ((int)fabs(px - ox) == 2) {
+		int mx((px + ox)>> 1), my((py + oy)>> 1);
+		this->a[mx][my] = Board::Empty;
+	}
+	return 1;
+}
+

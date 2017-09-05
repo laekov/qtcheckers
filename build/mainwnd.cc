@@ -1,15 +1,26 @@
 #include <QtDebug>
 #include <QPainter>
 #include <QMouseEvent>
+#include <QNetworkInterface>
+#include <QByteArray>
 #include "mainwnd.hh"
 #include "ui_mainwnd.h"
 
-MainWnd::MainWnd(QWidget* parent): QMainWindow(parent), ui(new Ui::MainWnd), board(new Board), slx(-1), sly(-1) {
+MainWnd::MainWnd(QWidget* parent): QMainWindow(parent), ui(new Ui::MainWnd), board(new Board), slx(-1), sly(-1), srv(0) {
 	this->ui->setupUi(this);
 	this->ui->paintArea->installEventFilter(this);
+/*	foreach (const QHostAddress &address, QNetworkInterface::allAddresses()) {
+		 if (address.protocol() == QAbstractSocket::IPv4Protocol && address != QHostAddress(QHostAddress::LocalHost)) {
+			 this->ui->textIP->setText(address.toString());
+		 }
+	}*/
+	QObject::connect(this->ui->btnStartSrv, SIGNAL(clicked()), this, SLOT(createServer()));
+	QObject::connect(this->ui->btnConnect, SIGNAL(clicked()), this, SLOT(connectServer()));
+	QObject::connect(this->ui->btnDefeated, SIGNAL(clicked()), this, SLOT(admitDefeated()));
 }
 
 void MainWnd::display() {
+	this->ui->paintArea->update();
 }
 
 void MainWnd::paintBoard() {
@@ -64,9 +75,80 @@ void MainWnd::onMouseClickBoard(int x, int y) {
 	int px(y / gridWid), py(x / gridHei);
 	if (this->slx == px && this->sly == py) {
 		this->slx = this->sly = -1;
+	} else if (this->slx != -1 && this->board->accessible(this->slx, this->sly, px, py, 1)) {
+		this->board->move(this->slx, this->sly, px, py);
+		this->pushData();
 	} else {
 		this->slx = px, this->sly = py;
 	}
 	this->ui->paintArea->update();
+}
+
+bool MainWnd::initClient(QHostAddress addr, int port) {
+	this->client = new QTcpSocket();
+	try {
+		this->client->connectToHost(addr, port);
+	} catch (int error) {
+		this->ui->textConn->setText("Connection failed");
+		return 0;
+	}
+	QObject::connect(this->client, SIGNAL(readyRead()), this, SLOT(recvData()));
+	return 1;
+}
+
+void MainWnd::createServer() {
+	this->ui->textConn->setText("Creating server");
+	QHostAddress addr(this->ui->textIP->text());
+	bool valid;
+	int port(this->ui->textPort->text().toInt(&valid));
+	try {
+		if (this->srv) {
+			delete this->srv;
+		}
+		this->srv = new Server(addr, port);
+	} catch (int error) {
+		this->ui->textConn->setText("Server error");
+		return;
+	}
+	this->ui->btnStartSrv->hide();
+	this->ui->textConn->setText(QString("Server listening on %1:%2").arg(addr.toString()).arg(port));
+	QObject::connect(this->srv, SIGNAL(updateStatus(QString)), this, SLOT(updateConnStatus(QString)));
+	this->initClient(addr, port);
+}
+
+void MainWnd::connectServer() {
+	this->ui->textConn->setText("Connecting server");
+	QHostAddress addr(this->ui->textIP->text());
+	bool valid;
+	int port(this->ui->textPort->text().toInt(&valid));
+	if (this->initClient(addr, port)) {
+		this->ui->textConn->setText("Connected to host");
+	} else {
+		this->ui->textConn->setText("Connecting failed");
+	}
+}
+
+void MainWnd::updateConnStatus(QString text) {
+	this->ui->textConn->setText(text);
+}
+
+void MainWnd::admitDefeated() {
+	if (this->client) {
+		this->client->write("AdmitDefeated");
+	}
+}
+
+void MainWnd::recvData() {
+	QByteArray data(this->client->readAll());
+	if (data[0] == 'B') {
+		this->board->sync(data);
+		this->display();
+	}
+}
+
+void MainWnd::pushData() {
+	if (this->client) {
+		this->client->write(this->board->toString().c_str());
+	}
 }
 

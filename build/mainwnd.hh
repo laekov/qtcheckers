@@ -2,7 +2,10 @@
 #define MAINWND_HH
 #include <QMainWindow>
 #include <QEvent>
+#include <QNetworkInterface>
+#include <QTcpSocket>
 #include "board.hh"
+#include "server.hh"
 
 namespace Ui {
 	class MainWnd;
@@ -16,6 +19,9 @@ class MainWnd: public QMainWindow {
 		void paintBoard();
 		static const int marginPx = 5;
 		int slx, sly;
+		Server *srv;
+		QTcpSocket *client;
+		bool initClient(QHostAddress, int);
 	public:
 		explicit MainWnd(QWidget* = 0);
 		~MainWnd() {}
@@ -23,5 +29,12 @@ class MainWnd: public QMainWindow {
 	public slots:
 		void display();
 		void onMouseClickBoard(int, int);
+		void createServer();
+		void connectServer();
+		void admitDefeated();
+		void updateConnStatus(QString);
+		void recvData();
+		void pushData();
 };
 #endif
+

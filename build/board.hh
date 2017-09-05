@@ -1,6 +1,7 @@
 #ifndef BOARD_HH
 #define BOARD_HH
 #include <cstring>
+#include <string>
 class Board {
 	private:
 		int a[10][10];
@@ -46,5 +47,9 @@ class Board {
 		}
 		int get(int, int);
 		bool accessible(int, int, int, int, int, int = 0);
+		bool move(int, int, int, int);
+		void sync(const char*);
+		std::string toString();
 };
 #endif
+
