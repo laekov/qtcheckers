@@ -3,3 +3,5 @@
 *.h
 *.app
 Makefile
+*.swp
+*.stash

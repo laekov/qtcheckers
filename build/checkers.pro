@@ -9,4 +9,6 @@ INCLUDEPATH += .
 QT += core gui widgets network
 
 # Input
-SOURCES += main.cc
+HEADERS += mainwnd.hh board.hh
+SOURCES += main.cc mainwnd.cc board.cc
+FORMS += mainwnd.ui
