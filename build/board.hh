@@ -11,11 +11,14 @@ class Board {
 		static const int WSoldier = 2;
 		static const int WKing = 6;
 		static const int Obs = 8;
+		inline static bool isSoldier(int x) {
+			return x == 1 || x == 2;
+		}
 		inline static bool isKing(int x) {
 			return x & 3;
 		}
 		inline static bool isEnemy(int x, int y) {
-			return (x & y & 3) == 0;
+			return !isObs(x) && !isObs(y) && x && y && (x & y & 3) == 0;
 		}
 		inline static bool isObs(int x) {
 			return x & 8;
@@ -29,6 +32,9 @@ class Board {
 		inline static int setObs(int x) {
 			return x | Obs;
 		}
+		inline static int inRange(int x, int y) {
+			return x >= 0 && x < 10 && y >= 0 && y < 10;
+		}
 		Board() {
 			memset(this->a, 0, sizeof(this->a));
 			for (int i = 0; i < 4; ++ i) {
@@ -38,6 +44,7 @@ class Board {
 				}
 			}
 		}
-		int get(int x, int y);
+		int get(int, int);
+		bool accessible(int, int, int, int, int, int = 0);
 };
 #endif

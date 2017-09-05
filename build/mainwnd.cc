@@ -23,6 +23,8 @@ void MainWnd::paintBoard() {
 			QColor bgc(((i ^ j)& 1) ? Qt::white : Qt::gray);
 			if (i == this->slx && j == this->sly) {
 				bgc = Qt::cyan;
+			} else if (this->board->accessible(this->slx, this->sly, i, j, 1)) { // TODO fill my fraction here
+				bgc = Qt::darkCyan;
 			}
 			qp.fillRect(j * gridWid, i * gridHei, gridWid, gridHei, bgc);
 			int paintStyle(0);
