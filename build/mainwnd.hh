@@ -18,7 +18,7 @@ class MainWnd: public QMainWindow {
 		Board* board;
 		void paintBoard();
 		static const int marginPx = 5;
-		int slx, sly;
+		int slx, sly, fac, turn;
 		Server *srv;
 		QTcpSocket *client;
 		bool initClient(QHostAddress, int);
@@ -33,6 +33,7 @@ class MainWnd: public QMainWindow {
 		void connectServer();
 		void admitDefeated();
 		void updateConnStatus(QString);
+		void updateHint(QString);
 		void recvData();
 		void pushData();
 };

@@ -6,7 +6,7 @@
 #include "mainwnd.hh"
 #include "ui_mainwnd.h"
 
-MainWnd::MainWnd(QWidget* parent): QMainWindow(parent), ui(new Ui::MainWnd), board(new Board), slx(-1), sly(-1), srv(0) {
+MainWnd::MainWnd(QWidget* parent): QMainWindow(parent), ui(new Ui::MainWnd), board(new Board), slx(-1), sly(-1), fac(0), turn(0), srv(0) {
 	this->ui->setupUi(this);
 	this->ui->paintArea->installEventFilter(this);
 /*	foreach (const QHostAddress &address, QNetworkInterface::allAddresses()) {
@@ -34,7 +34,7 @@ void MainWnd::paintBoard() {
 			QColor bgc(((i ^ j)& 1) ? Qt::white : Qt::gray);
 			if (i == this->slx && j == this->sly) {
 				bgc = Qt::cyan;
-			} else if (this->board->accessible(this->slx, this->sly, i, j, 1)) { // TODO fill my fraction here
+			} else if (this->board->accessible(this->slx, this->sly, i, j, this->fac)) { // TODO fill my faction here
 				bgc = Qt::darkCyan;
 			}
 			qp.fillRect(j * gridWid, i * gridHei, gridWid, gridHei, bgc);
@@ -75,9 +75,11 @@ void MainWnd::onMouseClickBoard(int x, int y) {
 	int px(y / gridWid), py(x / gridHei);
 	if (this->slx == px && this->sly == py) {
 		this->slx = this->sly = -1;
-	} else if (this->slx != -1 && this->board->accessible(this->slx, this->sly, px, py, 1)) {
-		this->board->move(this->slx, this->sly, px, py);
-		this->pushData();
+	} else if (this->slx != -1 && this->board->accessible(this->slx, this->sly, px, py, this->fac)) {
+		if (this->turn) {
+			this->board->move(this->slx, this->sly, px, py);
+			this->pushData();
+		}
 	} else {
 		this->slx = px, this->sly = py;
 	}
@@ -93,7 +95,7 @@ bool MainWnd::initClient(QHostAddress addr, int port) {
 		return 0;
 	}
 	QObject::connect(this->client, SIGNAL(readyRead()), this, SLOT(recvData()));
-	return 1;
+	return this->client->isOpen();
 }
 
 void MainWnd::createServer() {
@@ -111,6 +113,7 @@ void MainWnd::createServer() {
 		return;
 	}
 	this->ui->btnStartSrv->hide();
+	this->ui->btnConnect->hide();
 	this->ui->textConn->setText(QString("Server listening on %1:%2").arg(addr.toString()).arg(port));
 	QObject::connect(this->srv, SIGNAL(updateStatus(QString)), this, SLOT(updateConnStatus(QString)));
 	this->initClient(addr, port);
@@ -123,6 +126,8 @@ void MainWnd::connectServer() {
 	int port(this->ui->textPort->text().toInt(&valid));
 	if (this->initClient(addr, port)) {
 		this->ui->textConn->setText("Connected to host");
+		this->ui->btnStartSrv->hide();
+		this->ui->btnConnect->hide();
 	} else {
 		this->ui->textConn->setText("Connecting failed");
 	}
@@ -134,21 +139,34 @@ void MainWnd::updateConnStatus(QString text) {
 
 void MainWnd::admitDefeated() {
 	if (this->client) {
-		this->client->write("AdmitDefeated");
+		this->client->write("AdmitDefeated\n");
 	}
 }
 
 void MainWnd::recvData() {
-	QByteArray data(this->client->readAll());
-	if (data[0] == 'B') {
-		this->board->sync(data);
-		this->display();
+	while (this->client->bytesAvailable()) {
+		QByteArray data(this->client->readLine());
+		if (data[0] == 'B') {
+			this->board->sync(data);
+			this->display();
+		} else if (data[0] == 'F') {
+			this->fac = data[1] - 48;
+			this->ui->textFaction->setText(QString("You are %1").arg(this->fac == 1 ? "black" : "white"));
+		} else if (data[0] == 'T') {
+			this->turn = (data[1] == 'I');
+			this->updateHint(QString("%1").arg(this->turn ? "Your turn" : "Wait for your opponent"));
+		}
 	}
 }
 
 void MainWnd::pushData() {
-	if (this->client) {
+	if (this->client && this->turn) {
 		this->client->write(this->board->toString().c_str());
+		this->client->write("T\n");
 	}
+}
+
+void MainWnd::updateHint(QString hint) {
+	this->ui->textHint->setText(hint);
 }
 

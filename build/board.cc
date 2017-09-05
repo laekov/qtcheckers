@@ -61,6 +61,7 @@ std::string Board::toString() {
 			s += (char)this->a[i][j] + 48;
 		}
 	}
+	s += '\n';
 	return s;
 }
 

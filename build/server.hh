@@ -15,8 +15,9 @@ class Server: public QObject {
 		QTcpSocket* socs[2];
 		QSignalMapper* mpr;
 		Board* bd;
+		QByteArray currData;
 	public:
-		int totSo;
+		int totSo, turn;
 		explicit Server(QHostAddress, int);
 		inline bool isListening() {
 			return this->srv->isListening();
