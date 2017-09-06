@@ -37,6 +37,11 @@ class MainWnd: public QMainWindow {
 		void updateHint(QString);
 		void recvData();
 		void pushData(int);
+		void restart();
+		void setBK();
+		void setBCJ();
+		void setW();
+		void onConnected();
 };
 #endif
 

@@ -2,11 +2,12 @@
 #include <QPainter>
 #include <QMouseEvent>
 #include <QNetworkInterface>
+#include <QMessageBox>
 #include <QByteArray>
 #include "mainwnd.hh"
 #include "ui_mainwnd.h"
 
-MainWnd::MainWnd(QWidget* parent): QMainWindow(parent), ui(new Ui::MainWnd), board(new Board), slx(-1), sly(-1), fac(0), turn(0), lkx(-1), lky(-1), srv(0) {
+MainWnd::MainWnd(QWidget* parent): QMainWindow(parent), ui(new Ui::MainWnd), board(new Board), slx(-1), sly(-1), fac(0), turn(0), lkx(-1), lky(-1), srv(new Server), client(new QTcpSocket) {
 	this->ui->setupUi(this);
 	this->ui->paintArea->installEventFilter(this);
 /*	foreach (const QHostAddress &address, QNetworkInterface::allAddresses()) {
@@ -17,6 +18,12 @@ MainWnd::MainWnd(QWidget* parent): QMainWindow(parent), ui(new Ui::MainWnd), boa
 	QObject::connect(this->ui->btnStartSrv, SIGNAL(clicked()), this, SLOT(createServer()));
 	QObject::connect(this->ui->btnConnect, SIGNAL(clicked()), this, SLOT(connectServer()));
 	QObject::connect(this->ui->btnDefeated, SIGNAL(clicked()), this, SLOT(admitDefeated()));
+	QObject::connect(this->ui->actionRestart, SIGNAL(triggered()), this, SLOT(restart()));
+	QObject::connect(this->ui->actionSBK, SIGNAL(triggered()), this, SLOT(setBK()));
+	QObject::connect(this->ui->actionSBCJ, SIGNAL(triggered()), this, SLOT(setBCJ()));
+	QObject::connect(this->ui->actionSW, SIGNAL(triggered()), this, SLOT(setW()));
+	QObject::connect(this->client, SIGNAL(readyRead()), this, SLOT(recvData()));
+	QObject::connect(this->client, SIGNAL(connected()), this, SLOT(onConnected()));
 }
 
 void MainWnd::display() {
@@ -117,15 +124,20 @@ void MainWnd::onMouseDblClickBoard(int x, int y) {
 }
 
 bool MainWnd::initClient(QHostAddress addr, int port) {
-	this->client = new QTcpSocket();
+	if (this->client->isOpen()) {
+		this->client->close();
+	}
 	try {
 		this->client->connectToHost(addr, port);
 	} catch (int error) {
 		this->ui->textConn->setText("Connection failed");
 		return 0;
 	}
-	QObject::connect(this->client, SIGNAL(readyRead()), this, SLOT(recvData()));
 	return this->client->isOpen();
+}
+
+void MainWnd::onConnected() {
+	this->ui->textConn->setText("Connected to host");
 }
 
 void MainWnd::createServer() {
@@ -134,19 +146,16 @@ void MainWnd::createServer() {
 	bool valid;
 	int port(this->ui->textPort->text().toInt(&valid));
 	try {
-		if (this->srv) {
-			delete this->srv;
-		}
-		this->srv = new Server(addr, port);
+		this->srv->listen(addr, port);
 	} catch (int error) {
 		this->ui->textConn->setText("Server error");
 		return;
 	}
+	this->initClient(addr, port);
 	this->ui->btnStartSrv->hide();
 	this->ui->btnConnect->hide();
 	this->ui->textConn->setText(QString("Server listening on %1:%2").arg(addr.toString()).arg(port));
 	QObject::connect(this->srv, SIGNAL(updateStatus(QString)), this, SLOT(updateConnStatus(QString)));
-	this->initClient(addr, port);
 }
 
 void MainWnd::connectServer() {
@@ -155,7 +164,6 @@ void MainWnd::connectServer() {
 	bool valid;
 	int port(this->ui->textPort->text().toInt(&valid));
 	if (this->initClient(addr, port)) {
-		this->ui->textConn->setText("Connected to host");
 		this->ui->btnStartSrv->hide();
 		this->ui->btnConnect->hide();
 	} else {
@@ -187,11 +195,27 @@ void MainWnd::recvData() {
 			this->updateHint(QString("%1").arg(this->turn ? "Your turn" : "Wait for your opponent"));
 			this->lkx = this->lky = -1;
 			this->slx = this->sly = -1;
+		} else if (data[0] == 'W') {
+			int wf(data[1] - 48);
+			QMessageBox* mb(new QMessageBox(this));
+			mb->setWindowTitle("Game Over");
+			mb->setText(QString("You %1").arg((wf == this->fac) ? "win" : "lose"));
+			mb->exec();
+			this->restart();
+			break;
 		}
 	}
 }
 
 void MainWnd::pushData(int flag) {
+	if (!this->client || !this->client->isOpen()) {
+		QMessageBox* mb(new QMessageBox(this));
+		mb->setWindowTitle("Error");
+		mb->setText("Connection lost");
+		mb->exec();
+		this->restart();
+		return;
+	}
 	if (this->client && this->turn) {
 		if (flag & 1) {
 			this->client->write(this->board->toString().c_str());
@@ -206,5 +230,63 @@ void MainWnd::pushData(int flag) {
 
 void MainWnd::updateHint(QString hint) {
 	this->ui->textHint->setText(hint);
+}
+
+void MainWnd::restart() {
+	if (this->board) {
+		delete this->board;
+		this->board = new Board;
+	}
+	this->ui->btnStartSrv->show();
+	this->ui->btnConnect->show();
+}
+
+void MainWnd::setBK() {
+	this->board->sync("B\
+0000000000\
+0100000200\
+0000000000\
+0002000000\
+0000000020\
+0000000000\
+0000002000\
+0002000000\
+0000000000\
+0000000000\
+0000000000\n");
+	this->pushData(3);
+	this->display();
+}
+void MainWnd::setBCJ() {
+	this->board->sync("B\
+0000000000\
+0200020000\
+0000000000\
+0002000200\
+0000000000\
+0000020000\
+0000000000\
+0002000000\
+0010000000\
+0000000000\
+0000000000\n");
+	this->pushData(3);
+	this->display();
+}
+void MainWnd::setW() {
+	this->board->sync("B\
+0000000000\
+0200020000\
+0000000000\
+0002000200\
+0000000000\
+0000020000\
+0000000000\
+0002000000\
+0010000000\
+0000000000\
+0000000000\n");
+	this->pushData(3);
+	this->display();
 }
 

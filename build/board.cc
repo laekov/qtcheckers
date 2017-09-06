@@ -19,7 +19,7 @@ int Board::get(int x, int y) {
 	}
 }
 
-bool Board::movable(int ox, int oy, int tx, int ty, int frac, int ctnjmp) {
+bool Board::movable(int ox, int oy, int tx, int ty, int fac, int ctnjmp) {
 	if (!Board::inRange(ox, oy)) {
 		return 0;
 	}
@@ -35,12 +35,12 @@ bool Board::movable(int ox, int oy, int tx, int ty, int frac, int ctnjmp) {
 	if (tx == ox && ty == oy) {
 		return 0;
 	}
-	if (isObs(this->a[ox][oy]) || (this->a[ox][oy] & frac) == 0) {
+	if (isObs(this->a[ox][oy]) || (this->a[ox][oy] & fac) == 0) {
 		return 0;
 	}
 	if (Board::isSoldier(this->a[ox][oy])) {
-		int d((frac == 1) ? -1 : 1);
-		// qDebug("%d %d %d\n", frac, tx - ox, d);
+		int d((fac == 1) ? -1 : 1);
+		// qDebug("%d %d %d\n", fac, tx - ox, d);
 		if (tx - ox == d && !ctnjmp) {
 			return 1;
 		} else if (abs(tx - ox) == 2) {
@@ -54,10 +54,10 @@ bool Board::movable(int ox, int oy, int tx, int ty, int frac, int ctnjmp) {
 		int dx(abs(tx - ox) / (tx - ox)), dy(abs(ty - oy) / (ty - oy));
 		int cenm(0);
 		for (int cx = ox + dx, cy = oy + dy; cx != tx; cx += dx, cy += dy) {
-			if (Board::isObs(this->a[cx][cy]) || (this->a[cx][cy] & frac & 3)) {
+			if (Board::isObs(this->a[cx][cy]) || (this->a[cx][cy] & fac & 3)) {
 				return 0;
 			}
-			if (Board::isEnemy(this->a[cx][cy], frac)) {
+			if (Board::isEnemy(this->a[cx][cy], fac)) {
 				++ cenm;
 			}
 		}
@@ -71,29 +71,30 @@ bool Board::movable(int ox, int oy, int tx, int ty, int frac, int ctnjmp) {
 static const int movx[4] = { 1, 1, -1, -1 };
 static const int movy[4] = { 1, -1, 1, -1 };
 
-int Board::lenDFS(int ox, int oy, int tx, int ty, int frac) {
+int Board::lenDFS(int ox, int oy, int tx, int ty, int fac) {
 	int res(0);
 	// qDebug("Checking %d,%d and %d,%d", ox, oy, tx, ty);
-	if (this->movable(ox, oy, tx, ty, frac, 1)) {
+	if (this->movable(ox, oy, tx, ty, fac, 1)) {
+		res = 1;
 		this->a[tx][ty] = this->a[ox][oy];
 		this->a[ox][oy] = Board::Empty;
 		for (int i = 0; i < 4; ++ i) {
 			if (Board::isSoldier(this->a[ox][oy])) {
 				int mx((tx + ox)>> 1), my((ty + oy)>> 1);
 				this->a[mx][my] |= Board::Obs;
-				res = max(res, this->lenDFS(tx, ty, tx + movx[i] * 2, ty + movy[i] * 2, frac) + 1);
+				res = max(res, this->lenDFS(tx, ty, tx + movx[i] * 2, ty + movy[i] * 2, fac) + 1);
 				this->a[mx][my] &= ~Board::Obs;
 			} else if (Board::isKing(this->a[ox][oy])) {
 				int cenn(0);
 				int dx(abs(tx - ox) / (tx - ox)), dy(abs(ty - oy) / (ty - oy));
 				for (int cx = ox + dx, cy = oy + dy; cx != tx; cx += dx, cy += dy) {
-					if (Board::isEnemy(this->a[cx][cy], frac)) {
+					if (Board::isEnemy(this->a[cx][cy], fac)) {
 						this->a[cx][cy] |= Board::Obs;
 					}
 				}
 				for (int cx = tx + movx[i], cy = ty + movy[i]; Board::inRange(cx, cy); cx += movx[i], cy += movy[i]) {
 					if (cenn) {
-						res = max(res, this->lenDFS(tx, ty, cx, cy, frac) + 1);
+						res = max(res, this->lenDFS(tx, ty, cx, cy, fac) + 1);
 					}
 					if (isEnemy(this->a[tx][ty], this->a[cx][cy])) {
 						if (cenn) {
@@ -105,7 +106,7 @@ int Board::lenDFS(int ox, int oy, int tx, int ty, int frac) {
 					}
 				}
 				for (int cx = ox + dx, cy = oy + dy; cx != tx; cx += dx, cy += dy) {
-					if (Board::isEnemy(this->a[cx][cy], frac)) {
+					if (Board::isEnemy(this->a[cx][cy], fac)) {
 						this->a[cx][cy] &= ~Board::Obs;
 					}
 				}
@@ -117,47 +118,69 @@ int Board::lenDFS(int ox, int oy, int tx, int ty, int frac) {
 	return res;
 }
 
-bool Board::accessible(int ox, int oy, int tx, int ty, int frac, int ctnjmp) {
-	if (this->movable(ox, oy, tx, ty, frac, ctnjmp)) {
+int Board::maxJmp(int ox, int oy) {
+	int fac(this->a[ox][oy] & 3);
+	int res(0);
+	if (Board::isSoldier(this->a[ox][oy])) {
+		for (int i = 0; i < 4; ++ i) {
+			res = max(res, this->lenDFS(ox, oy, ox + movx[i] * 2, oy + movy[i] * 2, fac));
+		}
+	} else if (Board::isKing(this->a[ox][oy])) {
+		for (int i = 0; i < 4; ++ i) {
+			int cenn(0);
+			for (int cx = ox + movx[i], cy = oy + movy[i]; Board::inRange(cx, cy); cx += movx[i], cy += movy[i]) {
+				if (cenn) {
+					res = max(res, this->lenDFS(ox, oy, cx, cy, fac));
+				}
+				if (isEnemy(this->a[ox][oy], this->a[cx][cy])) {
+					if (cenn) {
+						break;
+					}
+					cenn = 1;
+				} else if (isObs(this->a[cx][cy])) {
+					break;
+				}
+			}
+		}
+	}
+	return res;
+
+}
+int Board::maxJmp(int fac) {
+	int s(0);
+	for (int i = 0; i < 10; ++ i) {
+		for (int j = 0; j < 10; ++ j) {
+			if (!Board::isObs(this->a[i][j]) && (this->a[i][j] & fac)) {
+				s = max(s, this->maxJmp(i, j));
+			}
+		}
+	}
+	return s;
+}
+
+bool Board::accessible(int ox, int oy, int tx, int ty, int fac, int ctnjmp) {
+	if (this->movable(ox, oy, tx, ty, fac, ctnjmp)) {
+		int kl(this->maxJmp(this->a[ox][oy] & 3));
 		if (Board::isSoldier(this->a[ox][oy])) {
-		   if (abs(ox - tx) == 2) {
-			   int ccl(this->lenDFS(ox, oy, tx, ty, frac)), kl(ccl);
-			   for (int i = 0; i < 4; ++ i) {
-				   kl = max(kl, this->lenDFS(ox, oy, ox + movx[i] * 2, oy + movy[i] * 2, frac));
-			   }
-			   return kl == ccl;
-		   } else {
-			   return 1;
-		   }
+			if (abs(ox - tx) == 2) {
+				int ccl(this->lenDFS(ox, oy, tx, ty, fac));
+				return kl == ccl;
+			} else {
+				return kl == 0;
+			}
 		} else if (Board::isKing(this->a[ox][oy])) {
 			int dx(abs(tx - ox) / (tx - ox)), dy(abs(ty - oy) / (ty - oy));
 			int cenm(0);
 			for (int cx = ox + dx, cy = oy + dy; cx != tx; cx += dx, cy += dy) {
-				if (Board::isEnemy(this->a[cx][cy], frac)) {
+				if (Board::isEnemy(this->a[cx][cy], fac)) {
 					++ cenm;
 				}
 			}
 			if (cenm == 0) {
-				return 1;
+				return kl == 0;
+			} else {
+				return this->lenDFS(ox, oy, tx, ty, fac) == kl;
 			}
-			int ccl(this->lenDFS(ox, oy, tx, ty, frac)), kl(ccl);
-			for (int i = 0; i < 4; ++ i) {
-				int cenn(0);
-				for (int cx = tx + movx[i], cy = ty + movy[i]; Board::inRange(cx, cy); cx += movx[i], cy += movy[i]) {
-					if (cenn) {
-						kl = max(kl, this->lenDFS(ox, oy, cx, cy, frac));
-					}
-					if (isEnemy(this->a[tx][ty], this->a[cx][cy])) {
-						if (cenn) {
-							break;
-						}
-						cenn = 1;
-					} else if (isObs(this->a[cx][cy])) {
-						break;
-					}
-				}
-			}
-			return kl == ccl;
 		}
 	}
 	return 0;
@@ -186,43 +209,28 @@ int Board::move(int ox, int oy, int px, int py, int* lkx, int* lky) {
 	if (!this->accessible(ox, oy, px, py, this->a[ox][oy] & 3)) {
 		return 0;
 	}
+	int res(1), ne(1);
 	this->a[px][py] = this->a[ox][oy];
 	this->a[ox][oy] = Board::Empty;
-	int res(1);
 	if (Board::isSoldier(this->a[px][py])) {
 		if (abs(px - ox) == 2) {
 			int mx((px + ox)>> 1), my((py + oy)>> 1);
 			this->a[mx][my] |= Board::Obs;
-			for (int i = 0; i < 4; ++ i) {
-				if (this->movable(px, py, px + movx[i] * 2, py + movy[i] * 2, this->a[px][py] & 3, 1)) {
-					res |= 2;
-					break;
-				}
-			}
+			ne = 0;
 		}
 	} else if (Board::isKing(this->a[px][py])) {
 		int dx(abs(px - ox) / (px - ox)), dy(abs(py - oy) / (py - oy));
-		int cenm(0);
 		for (int cx = ox + dx, cy = oy + dy; cx != px; cx += dx, cy += dy) {
 			if (isEnemy(this->a[px][py], this->a[cx][cy])) {
-				++ cenm;
+				ne = 0;
 				this->a[cx][cy] |= Board::Obs;
 			}
 		}
-		if (cenm) {
-			for (int i = 0; i < 4 && (res & 2) == 0; ++ i) {
-				for (int cx = px + movx[i], cy = py + movy[i]; Board::inRange(cx, cy); cx += movx[i], cy += movy[i]) {
-					if (this->movable(px, py, cx, cy, this->a[px][py] & 3, 1)) {
-						res |= 2;
-						break;
-					}
-				}
-			}
-		}
 	}
-	if (res & 2) {
+	if (this->maxJmp(px, py) && !ne) {
 		*lkx = px;
 		*lky = py;
+		res |= 2;
 	} else {
 		for (int i = 0; i < 10; ++ i) {
 			for (int j = 0; j < 10; ++ j) {

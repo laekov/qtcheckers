@@ -6,6 +6,8 @@ class Board {
 	private:
 		int a[10][10];
 		int lenDFS(int, int, int, int, int);
+		int maxJmp(int);
+		int maxJmp(int, int);
 	public:
 		static const int Empty = 0;
 		static const int BSoldier = 1;

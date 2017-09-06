@@ -18,7 +18,8 @@ class Server: public QObject {
 		QByteArray currData;
 	public:
 		int totSo, turn;
-		explicit Server(QHostAddress, int);
+		explicit Server();
+		void listen(QHostAddress, int);
 		inline bool isListening() {
 			return this->srv->isListening();
 		}

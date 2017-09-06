@@ -2,15 +2,24 @@
 #include <QByteArray>
 #include <cstdlib>
 #include <ctime>
+#include <algorithm>
 #include "server.hh"
 
-Server::Server(QHostAddress addr, int port): bd(new Board), totSo(0) {
+Server::Server(): bd(new Board), totSo(0) {
 	this->socs[0] = this->socs[1] = 0;
 	this->srv = new QTcpServer(0);
-	this->srv->listen(addr, port);
 	this->mpr = new QSignalMapper;
 	QObject::connect(this->srv, SIGNAL(newConnection()), this, SLOT(newClient()));
 	QObject::connect(this->mpr, SIGNAL(mapped(int)), this, SLOT(recvData(int)));
+}
+
+void Server::listen(QHostAddress addr, int port) {
+	this->socs[0] = this->socs[1] = 0;
+	this->totSo = 0;
+	if (this->srv->isListening()) {
+		this->srv->close();
+	}
+	this->srv->listen(addr, port);
 }
 
 void Server::newClient() {
@@ -27,14 +36,14 @@ void Server::newClient() {
 	if (totSo == 2) {
 		srand(time(0));
 		int f(rand() & 1);
-		char tmp[4] = "F0\n";
-		tmp[1] = f + 49;
-		this->socs[0]->write(tmp);
-		tmp[1] = (f ^ 1) + 49;
-		this->socs[1]->write(tmp);
+		if (f) {
+			std::swap(this->socs[0], this->socs[1]);
+		}
+		this->socs[0]->write("F1\n");
+		this->socs[1]->write("F2\n");
 		this->turn = f;
-		this->socs[f]->write("TI\n");
-		this->socs[f ^ 1]->write("TO\n");
+		this->socs[0]->write("TI\n");
+		this->socs[1]->write("TO\n");
 	}
 }
 
@@ -60,6 +69,11 @@ void Server::recvData(int sid) {
 			this->socs[this->turn]->write("TO\n");
 			this->turn ^= 1;
 			this->socs[this->turn]->write("TI\n");
+		} else if (data[0] == 'A') {
+			char tmp[4] = "W0\n";
+			tmp[1] = 49 + (sid ^ 1);
+			this->socs[0]->write(tmp);
+			this->socs[1]->write(tmp);
 		}
 	}
 }
