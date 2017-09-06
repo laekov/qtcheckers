@@ -5,6 +5,7 @@
 class Board {
 	private:
 		int a[10][10];
+		int lenDFS(int, int, int, int, int);
 	public:
 		static const int Empty = 0;
 		static const int BSoldier = 1;
@@ -46,8 +47,9 @@ class Board {
 			}
 		}
 		int get(int, int);
+		bool movable(int, int, int, int, int, int = 0);
 		bool accessible(int, int, int, int, int, int = 0);
-		bool move(int, int, int, int);
+		int move(int, int, int, int, int*, int*);
 		void sync(const char*);
 		std::string toString();
 };
