@@ -4,7 +4,7 @@
 #include <ctime>
 #include "server.hh"
 
-Server::Server(QHostAddress addr, int port): totSo(0), bd(new Board) {
+Server::Server(QHostAddress addr, int port): bd(new Board), totSo(0) {
 	this->socs[0] = this->socs[1] = 0;
 	this->srv = new QTcpServer(0);
 	this->srv->listen(addr, port);
@@ -18,7 +18,9 @@ void Server::newClient() {
 		return;
 	}
 	this->socs[totSo] = this->srv->nextPendingConnection();
-	emit updateStatus(QString("Connected with %1").arg(this->socs[0]->peerAddress().toString()));
+	if (totSo == 2) {
+		emit updateStatus(QString("Connected with %1").arg(this->socs[0]->peerAddress().toString()));
+	}
 	QObject::connect(this->socs[totSo], SIGNAL(readyRead()), this->mpr, SLOT(map()));
 	this->mpr->setMapping(this->socs[totSo], totSo);
 	++ totSo;
@@ -40,11 +42,19 @@ void Server::recvData(int sid) {
 	while (this->socs[sid]->bytesAvailable()) {
 		QByteArray data(this->socs[sid]->readLine());
 		if (data[0] == 'B') {
+			this->bd->sync(data);
+			int w(this->bd->win());
 			if (sid == this->turn) {
 				this->socs[sid ^ 1]->write(data);
 				currData = data;
 			} else {
 				this->socs[sid]->write(data);
+			}
+			if (w) {
+				QString res("W%1\n");
+				res = res.arg(w);
+				this->socs[0]->write(res.toStdString().c_str());
+				this->socs[1]->write(res.toStdString().c_str());
 			}
 		} else if (data[0] == 'T') {
 			this->socs[this->turn]->write("TO\n");

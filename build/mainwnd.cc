@@ -54,6 +54,11 @@ void MainWnd::paintBoard() {
 				qp.setPen(bgc);
 				qp.drawEllipse(marginPx, marginPx, gridWid - marginPx * 2, gridHei - marginPx * 2);
 			}
+			if (Board::isKing(this->board->get(i, j))) {
+				qp.setPen(Qt::darkYellow);
+				qp.setBrush(Qt::yellow);
+				qp.drawEllipse(marginPx * 2, marginPx * 2, gridWid - marginPx * 4, gridHei - marginPx * 4);
+			}
 			if (Board::isObs(this->board->get(i, j))) {
 				qp.setPen(Qt::red);
 				qp.drawLine(marginPx, marginPx, gridWid - marginPx * 2, gridHei - marginPx * 2);
@@ -72,6 +77,10 @@ bool MainWnd::eventFilter(QObject* sdr, QEvent* evt) {
 		} else if (evt->type() == QEvent::MouseButtonPress) {
 			QMouseEvent* me((QMouseEvent*)evt);
 			this->onMouseClickBoard(me->x(), me->y());
+			return 1;
+		} else if (evt->type() == QEvent::MouseButtonDblClick) {
+			QMouseEvent* me((QMouseEvent*)evt);
+			this->onMouseDblClickBoard(me->x(), me->y());
 			return 1;
 		}
 	}
@@ -93,6 +102,17 @@ void MainWnd::onMouseClickBoard(int x, int y) {
 	} else if (this->lkx == -1) {
 		this->slx = px, this->sly = py;
 	}
+	this->display();
+}
+
+void MainWnd::onMouseDblClickBoard(int x, int y) {
+	int cvsHei(this->ui->paintArea->height());
+	int cvsWid(this->ui->paintArea->width());
+	int gridHei(cvsHei / 10);
+	int gridWid(cvsWid / 10);
+	int px(y / gridWid), py(x / gridHei);
+	this->board->setKing(px, py);
+	this->pushData(3);
 	this->display();
 }
 

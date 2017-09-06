@@ -29,6 +29,7 @@ class MainWnd: public QMainWindow {
 	public slots:
 		void display();
 		void onMouseClickBoard(int, int);
+		void onMouseDblClickBoard(int, int);
 		void createServer();
 		void connectServer();
 		void admitDefeated();
