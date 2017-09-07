@@ -19,6 +19,7 @@ MainWnd::MainWnd(QWidget* parent): QMainWindow(parent), ui(new Ui::MainWnd), boa
 	QObject::connect(this->ui->btnStartSrv, SIGNAL(clicked()), this, SLOT(createServer()));
 	QObject::connect(this->ui->btnConnect, SIGNAL(clicked()), this, SLOT(connectServer()));
 	QObject::connect(this->ui->btnDefeated, SIGNAL(clicked()), this, SLOT(admitDefeated()));
+	QObject::connect(this->ui->btnEven, SIGNAL(clicked()), this, SLOT(reqEven()));
 	QObject::connect(this->ui->actionRestart, SIGNAL(triggered()), this, SLOT(restart()));
 	QObject::connect(this->ui->actionSBK, SIGNAL(triggered()), this, SLOT(setBK()));
 	QObject::connect(this->ui->actionSBCJ, SIGNAL(triggered()), this, SLOT(setBCJ()));
@@ -27,6 +28,14 @@ MainWnd::MainWnd(QWidget* parent): QMainWindow(parent), ui(new Ui::MainWnd), boa
 	QObject::connect(this->client, SIGNAL(readyRead()), this, SLOT(recvData()));
 	QObject::connect(this->client, SIGNAL(connected()), this, SLOT(onConnected()));
 	QObject::connect(this->srv, SIGNAL(updateStatus(QString)), this, SLOT(updateConnStatus(QString)));
+	this->ui->btnDefeated->hide();
+	this->ui->btnEven->hide();
+	this->swin = new QSound(":/res/win.wav");
+	this->slose = new QSound(":/res/lose.wav");
+	this->smove = new QSound(":/res/move.wav");
+	this->sjmp = new QSound(":/res/jmp.wav");
+	this->sbeking = new QSound(":/res/beking.wav");
+	this->seven = new QSound(":/res/even.wav");
 }
 
 void MainWnd::display() {
@@ -45,7 +54,7 @@ void MainWnd::paintBoard() {
 	for (int i = 0; i < 10; ++ i) {
 		for (int j = 0; j < 10; ++ j) {
 			qp.translate(j * gridWid, i * gridHei);
-			QColor bgc(((i ^ j)& 1) ? Qt::white : Qt::gray);
+			QColor bgc(((i ^ j)& 1) ? Qt::gray : Qt::white);
 			if (i == this->slx && j == this->sly) {
 				bgc = Qt::cyan;
 			} else if (this->board->accessible(this->slx, this->sly, i, j, this->fac, this->lkx != -1)) {
@@ -107,7 +116,15 @@ void MainWnd::onMouseClickBoard(int x, int y) {
 		this->slx = this->sly = -1;
 	} else if (this->slx != -1 && this->board->accessible(this->slx, this->sly, px, py, this->fac, this->lkx != -1)) {
 		if (this->turn) {
-			this->pushData(this->board->move(this->slx, this->sly, px, py, &this->lkx, &this->lky));
+			int mres(this->board->move(this->slx, this->sly, px, py, &this->lkx, &this->lky));
+			this->pushData(mres);
+			if (mres & 2) {
+				this->sjmp->play();
+			} else if (mres & 4) {
+				this->sbeking->play();
+			} else {
+				this->smove->play();
+			}
 		}
 	} else if (this->lkx == -1) {
 		this->slx = px, this->sly = py;
@@ -165,6 +182,8 @@ void MainWnd::createServer() {
 		this->initClient(addr, port);
 		this->ui->btnStartSrv->hide();
 		this->ui->btnConnect->hide();
+		this->ui->btnDefeated->show();
+		this->ui->btnEven->show();
 		this->updateConnStatus(QString("Server listening on %1:%2").arg(addr.toString()).arg(port));
 	}
 }
@@ -177,6 +196,8 @@ void MainWnd::connectServer() {
 	if (this->initClient(addr, port)) {
 		this->ui->btnStartSrv->hide();
 		this->ui->btnConnect->hide();
+		this->ui->btnDefeated->show();
+		this->ui->btnEven->show();
 	} else {
 		this->ui->textConn->setText("Connecting failed");
 	}
@@ -210,12 +231,40 @@ void MainWnd::recvData() {
 			int wf(data[1] - 48);
 			QMessageBox* mb(new QMessageBox(this));
 			mb->setWindowTitle("Game Over");
-			mb->setText(QString("You %1").arg((wf == this->fac) ? "win" : "lose"));
+			if (wf == 0) {
+				mb->setText("Tie");
+				this->seven->play();
+			} else {
+				mb->setText(QString("You %1").arg((wf == this->fac) ? "win" : "lose"));
+				if (wf == this->fac) {
+					this->swin->play();
+				} else {
+					this->slose->play();
+				}
+			} 
 			mb->exec();
 			this->restart();
 			break;
 		} else if (data[0] == 'P') {
 			this->updateConnStatus(QString("Ping received at %1").arg(time(0)));
+		} else if (data[0] == 'E') {
+			if (data[1] == 'Q') {
+				QMessageBox* mb(new QMessageBox(this));
+				mb->setWindowTitle("Game Info");
+				mb->setText("Your opponent requests for a tie. Accept?");
+				mb->setStandardButtons(QMessageBox::No | QMessageBox::Yes);
+				int ret(mb->exec());
+				if (ret == QMessageBox::Yes) {
+					this->client->write("EA\n");
+				} else {
+					this->client->write("ER\n");
+				}
+			} else if (data[1]  == 'R') {
+				QMessageBox* mb(new QMessageBox(this));
+				mb->setWindowTitle("Game Info");
+				mb->setText("Tie request rejected");
+				mb->exec();
+			}
 		}
 	}
 }
@@ -253,6 +302,8 @@ void MainWnd::restart() {
 	this->srv->disconnect();
 	this->ui->btnStartSrv->show();
 	this->ui->btnConnect->show();
+	this->ui->btnDefeated->hide();
+	this->ui->btnEven->hide();
 	this->updateConnStatus("Pending connection");
 	this->updateHint("Waiting for opponent");
 	this->display();
@@ -293,15 +344,14 @@ void MainWnd::setBCJ() {
 void MainWnd::setW() {
 	this->board->sync("B\
 0000000000\
-0200020000\
-0000000000\
-0002000200\
-0000000000\
+0020001010\
+0000000002\
+0020000000\
+0001000000\
+0020000000\
 0000020000\
-0000000000\
-0002000000\
-0010000000\
-0000000000\
+0020000000\
+0000010000\
 0000000000\n");
 	this->pushData(3);
 	this->display();
@@ -309,4 +359,8 @@ void MainWnd::setW() {
 
 void MainWnd::ping() {
 	this->client->write("P\n");
+}
+
+void MainWnd::reqEven() {
+	this->client->write("EQ\n");
 }

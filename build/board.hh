@@ -49,8 +49,8 @@ class Board {
 			memset(this->a, 0, sizeof(this->a));
 			for (int i = 0; i < 4; ++ i) {
 				for (int j = 0; j < 5; ++ j) {
-					this->a[i][(i & 1) + j * 2] = WSoldier;
-					this->a[9 - i][((i ^ 1) & 1) + j * 2] = BSoldier;
+					this->a[i][((i ^ 1) & 1) + j * 2] = WSoldier;
+					this->a[9 - i][(i & 1) + j * 2] = BSoldier;
 				}
 			}
 		}

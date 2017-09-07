@@ -73,18 +73,17 @@ static const int movy[4] = { 1, -1, 1, -1 };
 
 int Board::lenDFS(int ox, int oy, int tx, int ty, int fac) {
 	int res(0);
-	// qDebug("Checking %d,%d and %d,%d", ox, oy, tx, ty);
 	if (this->movable(ox, oy, tx, ty, fac, 1)) {
 		res = 1;
 		this->a[tx][ty] = this->a[ox][oy];
 		this->a[ox][oy] = Board::Empty;
 		for (int i = 0; i < 4; ++ i) {
-			if (Board::isSoldier(this->a[ox][oy])) {
+			if (Board::isSoldier(this->a[tx][ty])) {
 				int mx((tx + ox)>> 1), my((ty + oy)>> 1);
 				this->a[mx][my] |= Board::Obs;
 				res = max(res, this->lenDFS(tx, ty, tx + movx[i] * 2, ty + movy[i] * 2, fac) + 1);
 				this->a[mx][my] &= ~Board::Obs;
-			} else if (Board::isKing(this->a[ox][oy])) {
+			} else if (Board::isKing(this->a[tx][ty])) {
 				int cenn(0);
 				int dx(abs(tx - ox) / (tx - ox)), dy(abs(ty - oy) / (ty - oy));
 				for (int cx = ox + dx, cy = oy + dy; cx != tx; cx += dx, cy += dy) {
@@ -95,18 +94,20 @@ int Board::lenDFS(int ox, int oy, int tx, int ty, int fac) {
 				for (int cx = tx + movx[i], cy = ty + movy[i]; Board::inRange(cx, cy); cx += movx[i], cy += movy[i]) {
 					if (cenn) {
 						res = max(res, this->lenDFS(tx, ty, cx, cy, fac) + 1);
+						//qDebug("DFS jmping from %d,%d to %d,%d, res = %d", tx, ty, cx, cy, res);
 					}
+					//qDebug("Checking from %d,%d to %d,%d, cenn = %d", tx, ty, cx, cy, cenn);
 					if (isEnemy(this->a[tx][ty], this->a[cx][cy])) {
 						if (cenn) {
 							break;
 						}
-						cenn = abs(cx - tx);
+						cenn = 1;
 					} else if (isObs(this->a[cx][cy])) {
 						break;
 					}
 				}
 				for (int cx = ox + dx, cy = oy + dy; cx != tx; cx += dx, cy += dy) {
-					if (Board::isEnemy(this->a[cx][cy], fac)) {
+					if (Board::isObs(this->a[cx][cy])) {
 						this->a[cx][cy] &= ~Board::Obs;
 					}
 				}
@@ -114,6 +115,8 @@ int Board::lenDFS(int ox, int oy, int tx, int ty, int fac) {
 		}
 		this->a[ox][oy] = this->a[tx][ty];
 		this->a[tx][ty] = Board::Empty;
+	} else {
+		//qDebug("not movable??");
 	}
 	return res;
 }
@@ -131,6 +134,7 @@ int Board::maxJmp(int ox, int oy) {
 			for (int cx = ox + movx[i], cy = oy + movy[i]; Board::inRange(cx, cy); cx += movx[i], cy += movy[i]) {
 				if (cenn) {
 					res = max(res, this->lenDFS(ox, oy, cx, cy, fac));
+					//qDebug("len dfs on %d,%d to %d,%d res = %d", ox, oy, cx, cy, res);
 				}
 				if (isEnemy(this->a[ox][oy], this->a[cx][cy])) {
 					if (cenn) {
@@ -242,6 +246,7 @@ int Board::move(int ox, int oy, int px, int py, int* lkx, int* lky) {
 		int bkx(isWhite(this->a[px][py]) ? 9 : 0);
 		if (px == bkx) {
 			this->a[px][py] |= Board::King;
+			res |= 4;
 		}
 		*lkx = -1;
 		*lky = -1;

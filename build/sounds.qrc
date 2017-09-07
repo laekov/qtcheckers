@@ -1,0 +1,10 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+    <file>res/jmp.wav</file>
+    <file>res/lose.wav</file>
+    <file>res/move.wav</file>
+    <file>res/win.wav</file>
+    <file>res/beking.wav</file>
+    <file>res/even.wav</file>
+</qresource>
+</RCC>

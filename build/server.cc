@@ -89,6 +89,15 @@ void Server::recvData(int sid) {
 			this->socs[1]->write(tmp);
 		} else if (data[0] == 'P') {
 			this->socs[sid]->write("P\n");
+		} else if (data[0] == 'E') {
+			if (data[1] == 'Q') {
+				this->socs[sid ^ 1]->write("EQ\n");
+			} else if (data[1] == 'A') {
+				this->socs[0]->write("W0\n");
+				this->socs[1]->write("W0\n");
+			} else if (data[1] == 'R') {
+				this->socs[sid ^ 1]->write("ER\n");
+			}
 		}
 	}
 }

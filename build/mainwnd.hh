@@ -4,6 +4,7 @@
 #include <QEvent>
 #include <QNetworkInterface>
 #include <QTcpSocket>
+#include <QSound>
 #include "board.hh"
 #include "server.hh"
 
@@ -22,6 +23,7 @@ class MainWnd: public QMainWindow {
 		Server *srv;
 		QTcpSocket *client;
 		bool initClient(QHostAddress, int);
+		QSound *swin, *slose, *smove, *sjmp, *sbeking, *seven;
 	public:
 		explicit MainWnd(QWidget* = 0);
 		~MainWnd() {}
@@ -41,6 +43,7 @@ class MainWnd: public QMainWindow {
 		void setBK();
 		void setBCJ();
 		void setW();
+		void reqEven();
 		void onConnected();
 		void ping();
 };

@@ -6,9 +6,10 @@ TEMPLATE = app
 TARGET = checkers
 INCLUDEPATH += .
 
-QT += core gui widgets network
+QT += core gui widgets network multimedia
 
 # Input
 HEADERS += mainwnd.hh board.hh server.hh
 SOURCES += main.cc mainwnd.cc board.cc server.cc
 FORMS += mainwnd.ui
+RESOURCES += sounds.qrc

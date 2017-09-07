@@ -79,13 +79,20 @@
    <widget class="QWidget" name="horizontalLayoutWidget_2">
     <property name="geometry">
      <rect>
-      <x>180</x>
+      <x>240</x>
       <y>590</y>
-      <width>349</width>
+      <width>281</width>
       <height>32</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QPushButton" name="btnEven">
+       <property name="text">
+        <string>Request tie</string>
+       </property>
+      </widget>
+     </item>
      <item>
       <widget class="QPushButton" name="btnDefeated">
        <property name="text">
