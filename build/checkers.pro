@@ -7,6 +7,7 @@ TARGET = checkers
 INCLUDEPATH += .
 
 QT += core gui widgets network multimedia
+ICON = ft.icns
 
 # Input
 HEADERS += mainwnd.hh board.hh server.hh
