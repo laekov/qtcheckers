@@ -166,6 +166,7 @@
     <addaction name="actionSBK"/>
     <addaction name="actionSBCJ"/>
     <addaction name="actionSW"/>
+    <addaction name="actionPing"/>
    </widget>
    <addaction name="menuFunctions"/>
   </widget>
@@ -188,6 +189,11 @@
   <action name="actionSW">
    <property name="text">
     <string>Set wining</string>
+   </property>
+  </action>
+  <action name="actionPing">
+   <property name="text">
+    <string>Ping server</string>
    </property>
   </action>
  </widget>

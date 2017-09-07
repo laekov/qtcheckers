@@ -42,6 +42,7 @@ class MainWnd: public QMainWindow {
 		void setBCJ();
 		void setW();
 		void onConnected();
+		void ping();
 };
 #endif
 

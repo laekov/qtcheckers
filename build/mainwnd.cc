@@ -4,6 +4,7 @@
 #include <QNetworkInterface>
 #include <QMessageBox>
 #include <QByteArray>
+#include <ctime>
 #include "mainwnd.hh"
 #include "ui_mainwnd.h"
 
@@ -22,8 +23,10 @@ MainWnd::MainWnd(QWidget* parent): QMainWindow(parent), ui(new Ui::MainWnd), boa
 	QObject::connect(this->ui->actionSBK, SIGNAL(triggered()), this, SLOT(setBK()));
 	QObject::connect(this->ui->actionSBCJ, SIGNAL(triggered()), this, SLOT(setBCJ()));
 	QObject::connect(this->ui->actionSW, SIGNAL(triggered()), this, SLOT(setW()));
+	QObject::connect(this->ui->actionPing, SIGNAL(triggered()), this, SLOT(ping()));
 	QObject::connect(this->client, SIGNAL(readyRead()), this, SLOT(recvData()));
 	QObject::connect(this->client, SIGNAL(connected()), this, SLOT(onConnected()));
+	QObject::connect(this->srv, SIGNAL(updateStatus(QString)), this, SLOT(updateConnStatus(QString)));
 }
 
 void MainWnd::display() {
@@ -137,7 +140,9 @@ bool MainWnd::initClient(QHostAddress addr, int port) {
 }
 
 void MainWnd::onConnected() {
-	this->ui->textConn->setText("Connected to host");
+	if (!this->srv->isListening()) {
+		this->ui->textConn->setText("Connected to host");
+	}
 }
 
 void MainWnd::createServer() {
@@ -145,17 +150,23 @@ void MainWnd::createServer() {
 	QHostAddress addr(this->ui->textIP->text());
 	bool valid;
 	int port(this->ui->textPort->text().toInt(&valid));
+	if (this->client->isOpen()) {
+		this->client->close();
+	}
 	try {
 		this->srv->listen(addr, port);
 	} catch (int error) {
 		this->ui->textConn->setText("Server error");
 		return;
 	}
-	this->initClient(addr, port);
-	this->ui->btnStartSrv->hide();
-	this->ui->btnConnect->hide();
-	this->ui->textConn->setText(QString("Server listening on %1:%2").arg(addr.toString()).arg(port));
-	QObject::connect(this->srv, SIGNAL(updateStatus(QString)), this, SLOT(updateConnStatus(QString)));
+	if (!this->srv->isListening()) {
+		this->updateConnStatus("Server creating failed, please retry");
+	} else {
+		this->initClient(addr, port);
+		this->ui->btnStartSrv->hide();
+		this->ui->btnConnect->hide();
+		this->updateConnStatus(QString("Server listening on %1:%2").arg(addr.toString()).arg(port));
+	}
 }
 
 void MainWnd::connectServer() {
@@ -203,6 +214,8 @@ void MainWnd::recvData() {
 			mb->exec();
 			this->restart();
 			break;
+		} else if (data[0] == 'P') {
+			this->updateConnStatus(QString("Ping received at %1").arg(time(0)));
 		}
 	}
 }
@@ -237,8 +250,12 @@ void MainWnd::restart() {
 		delete this->board;
 		this->board = new Board;
 	}
+	this->srv->disconnect();
 	this->ui->btnStartSrv->show();
 	this->ui->btnConnect->show();
+	this->updateConnStatus("Pending connection");
+	this->updateHint("Waiting for opponent");
+	this->display();
 }
 
 void MainWnd::setBK() {
@@ -290,3 +307,6 @@ void MainWnd::setW() {
 	this->display();
 }
 
+void MainWnd::ping() {
+	this->client->write("P\n");
+}

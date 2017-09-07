@@ -20,12 +20,11 @@ class Server: public QObject {
 		int totSo, turn;
 		explicit Server();
 		void listen(QHostAddress, int);
-		inline bool isListening() {
-			return this->srv->isListening();
-		}
+		bool isListening();
 	public slots:
 		void newClient();
 		void recvData(int);
+		void disconnect();
 	signals:
 		void updateStatus(QString);
 };
