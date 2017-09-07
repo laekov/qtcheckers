@@ -123,7 +123,6 @@ void MainWnd::onMouseClickBoard(int x, int y) {
 			} else if (mres & 4) {
 				this->sbeking->play();
 			} else {
-				this->smove->play();
 			}
 		}
 	} else if (this->lkx == -1) {
@@ -225,6 +224,7 @@ void MainWnd::recvData() {
 		} else if (data[0] == 'T') {
 			this->turn = (data[1] == 'I');
 			this->updateHint(QString("%1").arg(this->turn ? "Your turn" : "Wait for your opponent"));
+			this->smove->play();
 			this->lkx = this->lky = -1;
 			this->slx = this->sly = -1;
 		} else if (data[0] == 'W') {
